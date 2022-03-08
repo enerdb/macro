@@ -31,7 +31,7 @@ class Routine(threading.Thread):
     def __init__(self):
         super(Routine, self).__init__()  # Chama o construtor de threading.Thread
         self.running = False
-        
+        self.program_running = True # maybe should be a class attribute, not a object attribute
         
     def turn_on(self):
         self.running = True
@@ -43,16 +43,18 @@ class Routine(threading.Thread):
 #### ClickMouse - AutoClick ####
          
 class ClickMouse(Routine):
-    def __init__(self, delay = 0.001, button = mouse.Button.left):
+    def __init__(self, delay = 1, button = mouse.Button.left):
         super(ClickMouse, self).__init__()
         self.delay = delay
         self.button = button
         self.running = False
  
     def run(self):
-        while self.running:
-            my_mouse.click(self.button)
-            event.wait(self.delay)
+        while self.program_running:
+            while self.running:
+                my_mouse.click(self.button)
+                event.wait(self.delay)
+            event.wait(0.1)
 
 #### Farm ####
 
@@ -62,18 +64,20 @@ class Farm(Routine):
         
     def run(self):
         orientation = ['w', 'a', 's', 'd']
-        while self.running:
-            ncircles = 3
-            while(ncircles > 0):
-                sleep_time = 0.1 + ncircles*0.3
-                for side in orientation:
-                    if not self.running:
-                        return
-                    my_mouse.click(mouse.Button.left)
-                    my_keyboard.press(side)
-                    event.wait(sleep_time)
-                    my_keyboard.release(side)
-                ncircles -= 1
+        while self.program_running:
+            while self.running:
+                ncircles = 3
+                while(ncircles > 0):
+                    sleep_time = 0.1 + ncircles*0.3
+                    for side in orientation:
+                        if not self.running:
+                            return
+                        my_mouse.click(mouse.Button.left)
+                        my_keyboard.press(side)
+                        event.wait(sleep_time)
+                        my_keyboard.release(side)
+                    ncircles -= 1
+                event.wait(0.1)
  
     
 #####################################
@@ -83,20 +87,36 @@ class Farm(Routine):
 def stop_all():
     ac_thread.turn_off()
     farmer.turn_off()
-    
+
+
 def program_quit():
     stop_all()
-    #listener.stop()
+    ac_thread.program_running = False # maybe should be a class attribute, not a object attribute
+    farmer.program_running = False # maybe should be a class attribute, not a object attribute
+    listener.stop()
     return False
 
 
-    
+
+#####################################
+# Test Functions
+#####################################    
+
+def print_test():
+    print('Entrada de teclado funcionando')
+
+def quit_test():
+    print('Saindo')
+    listener.stop()
+
 
 #####################################
 # Main 
 #####################################
 
 if __name__ == "__main__":
+
+    event = threading.Event()
 
     my_mouse = mouse.Controller()
     my_keyboard = keyboard.Controller()
@@ -106,21 +126,21 @@ if __name__ == "__main__":
     farmer.start()
 
 
-    event = threading.Event()
-
 
     with keyboard.GlobalHotKeys({
-            '<ctrl>+f': farmer.turn_on(),
-            '<ctrl>+t': ac_thread.turn_on(),
-            '<ctrl>+g': stop_all(),
-            '<ctrl>+x': program_quit()
+            '<ctrl>+h': print_test,
+            '<ctrl>+q': quit_test,
+            '<ctrl>+f': farmer.turn_on,
+            '<ctrl>+t': ac_thread.turn_on,
+            '<ctrl>+g': stop_all,
+            '<ctrl>+x': program_quit
             }) as listener:
         listener.join()
 
 #######################################################
 # Problemas encontrados:
-# - Não estou conseguindo fazer multithreading e o programa só libera o main quando a função intermediária termina
-# - return False não está funcionando para sair do programa com GlobalHotKeys. Funcionava com Listener
+# (Resolvido) - Não estou conseguindo fazer multithreading e o programa só libera o main quando a função intermediária termina
+# (Resolvido) - return False não está funcionando para sair do programa com GlobalHotKeys. Funcionava com Listener 
 
 
 
